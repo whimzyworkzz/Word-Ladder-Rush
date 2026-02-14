@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Ladder Rush</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f5f3ff;
+    --surface: #ffffff;
+    --surface-2: #f0eeff;
+    --surface-3: #e8e5f8;
+    --text: #1e1b4b;
+    --text-dim: #6b7280;
+    --text-mid: #4b5563;
+    --border: rgba(99,102,241,0.12);
+    --border-light: rgba(0,0,0,0.06);
+    --start-color: #6366f1;
+    --end-color: #f59e0b;
+    --success: #22c55e;
+    --error: #ef4444;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.1);
+    --glow-start: rgba(99,102,241,0.15);
+    --glow-end: rgba(245,158,11,0.15);
+  }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* ===== ANIMATED BACKGROUND ===== */
+  canvas#bgCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .game-container {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  /* Controls row */
+  .controls-row {
+    position: fixed;
+    top: 12px; right: 12px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+  }
+
+  .ctrl-btn {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    padding: 7px 11px;
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+    line-height: 1;
+  }
+
+  .ctrl-btn:hover { transform: scale(1.1); box-shadow: var(--shadow-md); }
+  .ctrl-btn.active { background: var(--surface-2); border-color: var(--start-color); }
+
+  /* Header */
+  .header { text-align: center; margin: 24px 0 8px; }
+
+  .header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--start-color), var(--end-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+
+  .header p { color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; }
+
+  /* Top nav */
+  .top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    background: var(--surface);
+    color: var(--text-dim);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .nav-btn:hover { color: var(--text); border-color: var(--start-color); background: var(--surface-2); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .nav-btn svg { width: 14px; height: 14px; }
+
+  /* Stats bar */
+  .stats-bar { display: flex; gap: 10px; margin: 12px 0; justify-content: center; width: 100%; }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 8px 14px;
+    text-align: center;
+    flex: 1;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+  }
+
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; color: var(--text); }
+  .stat-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+  /* Progress bar */
+  .progress-container { width: 100%; margin: 8px 0 16px; position: relative; }
+
+  .progress-track {
+    height: 8px;
+    background: var(--surface-3);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1), background 0.6s ease;
+    width: 0%;
+    position: relative;
+  }
+
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -4px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: inherit;
+    box-shadow: 0 0 10px currentColor, 0 2px 6px rgba(0,0,0,0.15);
+    border: 2px solid white;
+    transition: all 0.6s ease;
+  }
+
+  .progress-labels { display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.72rem; font-weight: 600; color: var(--text-dim); }
+
+  /* Word chain */
+  .chain { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 12px; }
+
+  .word-row { display: flex; gap: 6px; animation: slideIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+  .tile {
+    width: 52px; height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.3rem; font-weight: 700;
+    border-radius: 12px;
+    text-transform: uppercase;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  .tile-start { background: var(--start-color); color: white; box-shadow: 0 4px 16px var(--glow-start), var(--shadow-md); }
+  .tile-end { background: var(--end-color); color: white; box-shadow: 0 4px 16px var(--glow-end), var(--shadow-md); }
+  .tile-step { border: 2px solid var(--border); background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  .tile-changed { animation: tileReveal 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+
+  @keyframes tileReveal { 0% { transform: rotateX(90deg) scale(0.8); } 50% { transform: rotateX(-10deg) scale(1.05); } 100% { transform: rotateX(0deg) scale(1); } }
+
+  .tile-highlight { border-color: var(--success) !important; box-shadow: 0 0 12px rgba(34,197,94,0.2), var(--shadow-sm); }
+
+  .connector { display: flex; flex-direction: column; align-items: center; gap: 3px; margin: -2px 0; }
+  .connector-dot { width: 4px; height: 4px; border-radius: 50%; background: rgba(99,102,241,0.2); }
+
+  /* Input area */
+  .input-area { width: 100%; margin: 4px 0; }
+  .input-row { display: flex; gap: 6px; justify-content: center; }
+
+  .input-tile {
+    width: 52px; height: 56px;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.3rem; font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    outline: none;
+    caret-color: transparent;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .input-tile:focus { border-color: var(--start-color); box-shadow: 0 0 0 3px rgba(99,102,241,0.15), var(--shadow-md); transform: translateY(-2px); }
+  .input-tile.filled { border-color: rgba(99,102,241,0.3); background: var(--surface-2); }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .btn {
+    padding: 10px 24px; border-radius: 10px; border: none;
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden;
+  }
+
+  .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .btn:active { transform: translateY(0) scale(0.97); }
+  .btn-primary { background: linear-gradient(135deg, var(--start-color), #818cf8); color: white; box-shadow: 0 4px 14px var(--glow-start); }
+  .btn-secondary { background: var(--surface); color: var(--text-mid); border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { background: var(--surface-2); color: var(--text); }
+  .btn-small { padding: 7px 16px; font-size: 0.78rem; border-radius: 8px; }
+
+  /* Messages */
+  .message { padding: 10px 20px; border-radius: 10px; font-size: 0.82rem; margin: 10px 0; animation: fadeSlide 0.3s ease; text-align: center; width: 100%; font-weight: 500; }
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(-10px); } }
+  .message-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+  .message-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+  .message-info { background: #eef2ff; border: 1px solid #c7d2fe; color: #4f46e5; }
+
+  .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97); }
+  @keyframes shake { 10%,90% { transform: translateX(-2px); } 20%,80% { transform: translateX(3px); } 30%,50%,70% { transform: translateX(-5px); } 40%,60% { transform: translateX(5px); } }
+
+  /* Victory */
+  .victory-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(245,243,255,0.9); backdrop-filter: blur(10px);
+    animation: fadeIn 0.4s ease; flex-direction: column;
+  }
+  @keyframes fadeIn { from { opacity: 0; } }
+
+  .victory-card {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: 24px; padding: 36px; text-align: center;
+    animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    max-width: 400px; width: 90%; box-shadow: var(--shadow-lg);
+    max-height: 90vh; overflow-y: auto;
+  }
+  @keyframes popIn { from { transform: scale(0.8) translateY(20px); opacity: 0; } }
+
+  .victory-emoji { font-size: 3.5rem; margin-bottom: 8px; animation: bounce 0.6s ease infinite alternate; }
+  @keyframes bounce { to { transform: translateY(-8px); } }
+
+  .victory-title {
+    font-size: 1.5rem; font-weight: 700; margin-bottom: 6px;
+    background: linear-gradient(135deg, var(--start-color), var(--end-color));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  .victory-sub { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 18px; line-height: 1.6; }
+  .victory-stats { display: flex; gap: 16px; justify-content: center; margin-bottom: 20px; }
+
+  .confetti-piece { position: fixed; z-index: 101; pointer-events: none; animation: confettiFall var(--fall-dur) ease-in forwards; }
+  @keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+
+  /* Welcome */
+  .welcome { text-align: center; margin-top: 30px; animation: fadeIn 0.6s ease; }
+  .welcome-icon { font-size: 3.5rem; margin-bottom: 12px; display: inline-block; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(-10px); } }
+  .welcome h2 { font-size: 1.4rem; margin-bottom: 8px; color: var(--text); }
+  .welcome p { color: var(--text-dim); font-size: 0.85rem; max-width: 340px; margin: 0 auto 20px; line-height: 1.6; }
+
+  .difficulty-picker { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+
+  .diff-btn {
+    padding: 14px 22px; border-radius: 14px; border: 1px solid var(--border-light);
+    background: var(--surface); color: var(--text);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s ease; text-align: center; min-width: 105px; box-shadow: var(--shadow-sm);
+  }
+
+  .diff-btn:hover { border-color: var(--start-color); transform: translateY(-3px); box-shadow: 0 6px 20px var(--glow-start); background: var(--surface-2); }
+  .diff-btn strong { display: block; margin-bottom: 2px; }
+  .diff-btn span { font-size: 0.7rem; color: var(--text-dim); }
+
+  .how-to {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: 14px; padding: 18px 22px; margin: 16px 0;
+    font-size: 0.82rem; color: var(--text-dim); line-height: 1.7;
+    width: 100%; max-width: 400px; box-shadow: var(--shadow-sm);
+  }
+  .how-to strong { color: var(--text); }
+
+  /* ===== LEADERBOARD ===== */
+  .leaderboard {
+    width: 100%; max-width: 400px; margin-top: 20px;
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: 16px; padding: 20px; box-shadow: var(--shadow-sm);
+    animation: fadeIn 0.5s ease;
+  }
+
+  .lb-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .lb-title {
+    font-size: 0.95rem; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .lb-tabs { display: flex; gap: 4px; }
+
+  .lb-tab {
+    padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border-light);
+    background: transparent; color: var(--text-dim);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.7rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+
+  .lb-tab.active { background: var(--start-color); color: white; border-color: var(--start-color); }
+  .lb-tab:hover:not(.active) { background: var(--surface-2); }
+
+  .lb-empty { color: var(--text-dim); font-size: 0.8rem; text-align: center; padding: 16px 0; font-style: italic; }
+
+  .lb-entry {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 10px;
+    margin-bottom: 4px; transition: all 0.2s ease;
+    font-size: 0.8rem;
+  }
+
+  .lb-entry:hover { background: var(--surface-2); }
+
+  .lb-rank {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.7rem; flex-shrink: 0;
+  }
+
+  .lb-rank-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; }
+  .lb-rank-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); color: white; }
+  .lb-rank-3 { background: linear-gradient(135deg, #d97706, #b45309); color: white; }
+  .lb-rank-default { background: var(--surface-3); color: var(--text-dim); }
+
+  .lb-puzzle { font-weight: 600; color: var(--text); flex: 1; }
+  .lb-puzzle span { color: var(--text-dim); font-weight: 400; }
+  .lb-detail { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-dim); text-align: right; white-space: nowrap; }
+
+  .lb-clear {
+    display: block; margin: 10px auto 0; padding: 4px 14px;
+    border-radius: 6px; border: 1px solid var(--border-light);
+    background: transparent; color: var(--text-dim);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.65rem;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+
+  .lb-clear:hover { background: #fef2f2; color: var(--error); border-color: var(--error); }
+
+  @media (max-width: 420px) {
+    .tile, .input-tile { width: 44px; height: 48px; font-size: 1.1rem; }
+    .header h1 { font-size: 1.5rem; }
+    .stats-bar { gap: 6px; }
+    .stat { padding: 6px 8px; }
+    .stat-value { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<div class="controls-row">
+  <button class="ctrl-btn" id="musicToggle" title="Toggle music">🎵</button>
+  <button class="ctrl-btn" id="soundToggle" title="Toggle SFX">🔊</button>
+</div>
+
+<div class="game-container" id="app"></div>
+
+<script>
+// ===================================================================
+// ANIMATED CANVAS BACKGROUND
+// ===================================================================
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let bubbles = [];
+let bgHue = 0;
+let animFrame;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+class Particle {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 3 + 1;
+    this.speedX = (Math.random() - 0.5) * 0.3;
+    this.speedY = (Math.random() - 0.5) * 0.3;
+    this.opacity = Math.random() * 0.3 + 0.05;
+    this.hueOffset = Math.random() * 60;
+  }
+  update() {
+    this.x += this.speedX;
+    this.y += this.speedY;
+    if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    const h = (bgHue + this.hueOffset) % 360;
+    ctx.fillStyle = `hsla(${h}, 70%, 75%, ${this.opacity})`;
+    ctx.fill();
+  }
+}
+
+class Bubble {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.radius = Math.random() * 80 + 40;
+    this.speedX = (Math.random() - 0.5) * 0.15;
+    this.speedY = (Math.random() - 0.5) * 0.15;
+    this.hueOffset = Math.random() * 120;
+    this.phase = Math.random() * Math.PI * 2;
+    this.pulseSpeed = 0.005 + Math.random() * 0.01;
+  }
+  update() {
+    this.x += this.speedX + Math.sin(this.phase) * 0.2;
+    this.y += this.speedY + Math.cos(this.phase) * 0.15;
+    this.phase += this.pulseSpeed;
+    if (this.x < -this.radius * 2) this.x = canvas.width + this.radius;
+    if (this.x > canvas.width + this.radius * 2) this.x = -this.radius;
+    if (this.y < -this.radius * 2) this.y = canvas.height + this.radius;
+    if (this.y > canvas.height + this.radius * 2) this.y = -this.radius;
+  }
+  draw() {
+    const h = (bgHue + this.hueOffset) % 360;
+    const pulse = Math.sin(this.phase) * 0.3 + 1;
+    const r = this.radius * pulse;
+    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, r);
+    grad.addColorStop(0, `hsla(${h}, 60%, 85%, 0.12)`);
+    grad.addColorStop(0.5, `hsla(${h}, 50%, 80%, 0.06)`);
+    grad.addColorStop(1, `hsla(${h}, 40%, 75%, 0)`);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+}
+
+for (let i = 0; i < 50; i++) particles.push(new Particle());
+for (let i = 0; i < 8; i++) bubbles.push(new Bubble());
+
+function drawConnections() {
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 120) {
+        const h = (bgHue + 30) % 360;
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `hsla(${h}, 60%, 75%, ${0.06 * (1 - dist / 120)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function animateBg() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Gradient background
+  bgHue = (bgHue + 0.05) % 360;
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  const h1 = bgHue % 360;
+  const h2 = (bgHue + 40) % 360;
+  const h3 = (bgHue + 80) % 360;
+  grad.addColorStop(0, `hsl(${250 + Math.sin(bgHue * 0.01) * 10}, 60%, 96%)`);
+  grad.addColorStop(0.5, `hsl(${40 + Math.sin(bgHue * 0.008) * 15}, 70%, 96%)`);
+  grad.addColorStop(1, `hsl(${320 + Math.cos(bgHue * 0.012) * 10}, 55%, 97%)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  bubbles.forEach(b => { b.update(); b.draw(); });
+  particles.forEach(p => { p.update(); p.draw(); });
+  drawConnections();
+
+  animFrame = requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ===================================================================
+// SOUND ENGINE
+// ===================================================================
+class SoundEngine {
+  constructor() {
+    this.enabled = true;
+    this.ctx = null;
+    this.initialized = false;
+  }
+  init() {
+    if (this.initialized) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.initialized = true;
+  }
+  toggle() {
+    this.enabled = !this.enabled;
+    document.getElementById('soundToggle').textContent = this.enabled ? '🔊' : '🔇';
+  }
+  play(type) {
+    if (!this.enabled) return;
+    this.init();
+    switch(type) {
+      case 'type': this._beep(600 + Math.random() * 200, 0.05, 'sine', 0.12); break;
+      case 'delete': this._beep(300, 0.06, 'sine', 0.08); break;
+      case 'submit': this._playSubmit(); break;
+      case 'error': this._playError(); break;
+      case 'victory': this._playVictory(); break;
+      case 'hint': this._beep(880, 0.1, 'triangle', 0.15); break;
+      case 'click': this._beep(500, 0.03, 'sine', 0.08); break;
+      case 'start': this._playStart(); break;
+    }
+  }
+  _beep(freq, duration, type = 'sine', vol = 0.15) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(); osc.stop(this.ctx.currentTime + duration);
+  }
+  _playSubmit() {
+    this._beep(523, 0.12, 'sine', 0.15);
+    setTimeout(() => this._beep(659, 0.12, 'sine', 0.15), 80);
+    setTimeout(() => this._beep(784, 0.15, 'sine', 0.15), 160);
+  }
+  _playError() {
+    this._beep(200, 0.15, 'sawtooth', 0.1);
+    setTimeout(() => this._beep(180, 0.2, 'sawtooth', 0.08), 100);
+  }
+  _playVictory() {
+    const notes = [523,587,659,784,880,1047,1175,1319];
+    notes.forEach((f,i) => setTimeout(() => this._beep(f, 0.2, 'sine', 0.12), i * 120));
+    setTimeout(() => {
+      [1319,1047,1319].forEach((f,i) => setTimeout(() => this._beep(f, 0.3, 'triangle', 0.15), i * 150));
+    }, notes.length * 120);
+  }
+  _playStart() {
+    [330,440,550,660].forEach((f,i) => setTimeout(() => this._beep(f, 0.1, 'sine', 0.1), i * 80));
+  }
+}
+
+const sound = new SoundEngine();
+document.getElementById('soundToggle').addEventListener('click', () => { sound.init(); sound.toggle(); sound.play('click'); });
+
+// ===================================================================
+// AMBIENT MUSIC ENGINE
+// ===================================================================
+class AmbientMusic {
+  constructor() {
+    this.playing = false;
+    this.ctx = null;
+    this.nodes = [];
+    this.interval = null;
+  }
+
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  toggle() {
+    this.init();
+    if (this.playing) { this.stop(); }
+    else { this.start(); }
+    document.getElementById('musicToggle').textContent = this.playing ? '🎵' : '🎶';
+    document.getElementById('musicToggle').classList.toggle('active', this.playing);
+  }
+
+  start() {
+    this.playing = true;
+
+    // Pad: warm ambient chord
+    const padNotes = [130.81, 164.81, 196.00, 261.63]; // C3, E3, G3, C4
+    this.padGain = this.ctx.createGain();
+    this.padGain.gain.value = 0;
+    this.padGain.gain.linearRampToValueAtTime(0.04, this.ctx.currentTime + 2);
+    this.padGain.connect(this.ctx.destination);
+
+    this.padOscs = padNotes.map(freq => {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+
+      const lfo = this.ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.2 + Math.random() * 0.3;
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = 2;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfo.start();
+
+      osc.connect(this.padGain);
+      osc.start();
+      return { osc, lfo };
+    });
+
+    // Soft melodic pings every few seconds
+    const melodyNotes = [
+      523.25, 587.33, 659.25, 783.99, // C5 D5 E5 G5
+      880.00, 783.99, 659.25, 523.25,  // A5 G5 E5 C5
+      392.00, 440.00, 523.25, 659.25   // G4 A4 C5 E5
+    ];
+
+    let noteIdx = 0;
+    this.interval = setInterval(() => {
+      if (!this.playing) return;
+      const freq = melodyNotes[noteIdx % melodyNotes.length];
+      noteIdx++;
+
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.03, this.ctx.currentTime + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 2.5);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 3);
+    }, 2800 + Math.random() * 1200);
+
+    // Subtle low hum
+    this.humOsc = this.ctx.createOscillator();
+    this.humOsc.type = 'sine';
+    this.humOsc.frequency.value = 65.41; // C2
+    this.humGain = this.ctx.createGain();
+    this.humGain.gain.value = 0;
+    this.humGain.gain.linearRampToValueAtTime(0.02, this.ctx.currentTime + 3);
+    this.humOsc.connect(this.humGain);
+    this.humGain.connect(this.ctx.destination);
+    this.humOsc.start();
+  }
+
+  stop() {
+    this.playing = false;
+    if (this.padGain) {
+      this.padGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1);
+      setTimeout(() => {
+        this.padOscs.forEach(({osc, lfo}) => { try { osc.stop(); lfo.stop(); } catch(e){} });
+      }, 1200);
+    }
+    if (this.humOsc) {
+      this.humGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1);
+      setTimeout(() => { try { this.humOsc.stop(); } catch(e){} }, 1200);
+    }
+    if (this.interval) clearInterval(this.interval);
+    this.padGain = null; this.padOscs = []; this.humOsc = null; this.humGain = null;
+  }
+}
+
+const music = new AmbientMusic();
+document.getElementById('musicToggle').addEventListener('click', () => { music.toggle(); });
+
+// ===================================================================
+// LEADERBOARD (in-memory for session, persisted via variable)
+// ===================================================================
+let leaderboard = [];
+let lbFilter = 'all';
+
+function saveScore(puzzle, difficulty, moves, time, hints, optimal) {
+  const efficiency = Math.round((optimal / moves) * 100);
+  const entry = {
+    start: puzzle.start,
+    end: puzzle.end,
+    difficulty,
+    moves,
+    time,
+    hints,
+    efficiency,
+    optimal,
+    date: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  };
+  leaderboard.unshift(entry);
+  // Keep max 50 entries
+  if (leaderboard.length > 50) leaderboard.pop();
+}
+
+function getFilteredLb() {
+  if (lbFilter === 'all') return leaderboard;
+  return leaderboard.filter(e => e.difficulty === lbFilter);
+}
+
+function renderLeaderboard() {
+  const entries = getFilteredLb();
+
+  // Sort by efficiency desc, then time asc
+  const sorted = [...entries].sort((a, b) => b.efficiency - a.efficiency || a.time - b.time);
+  const top = sorted.slice(0, 10);
+
+  let rows = '';
+  if (top.length === 0) {
+    rows = `<div class="lb-empty">No games played yet. Go climb some ladders!</div>`;
+  } else {
+    rows = top.map((e, i) => {
+      const rankClass = i === 0 ? 'lb-rank-1' : i === 1 ? 'lb-rank-2' : i === 2 ? 'lb-rank-3' : 'lb-rank-default';
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+      return `
+        <div class="lb-entry">
+          <div class="lb-rank ${rankClass}">${medal}</div>
+          <div class="lb-puzzle">${e.start} → ${e.end} <span>(${e.difficulty})</span></div>
+          <div class="lb-detail">${e.efficiency}% · ${formatTime(e.time)} · ${e.moves}m</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  return `
+    <div class="leaderboard">
+      <div class="lb-header">
+        <div class="lb-title">🏅 Leaderboard</div>
+        <div class="lb-tabs">
+          <button class="lb-tab ${lbFilter === 'all' ? 'active' : ''}" data-filter="all">All</button>
+          <button class="lb-tab ${lbFilter === 'easy' ? 'active' : ''}" data-filter="easy">Easy</button>
+          <button class="lb-tab ${lbFilter === 'medium' ? 'active' : ''}" data-filter="medium">Med</button>
+          <button class="lb-tab ${lbFilter === 'hard' ? 'active' : ''}" data-filter="hard">Hard</button>
+        </div>
+      </div>
+      ${rows}
+      ${leaderboard.length > 0 ? `<button class="lb-clear" id="lbClearBtn">Clear History</button>` : ''}
+    </div>
+  `;
+}
+
+function attachLbEvents() {
+  document.querySelectorAll('.lb-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      lbFilter = tab.dataset.filter;
+      sound.play('click');
+      render();
+    });
+  });
+  const clearBtn = document.getElementById('lbClearBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      leaderboard = [];
+      sound.play('delete');
+      render();
+    });
+  }
+}
+
+// ===================================================================
+// WORD DATABASE
+// ===================================================================
+const PUZZLES = {
+  easy: [
+    { start: 'CAT', end: 'DOG', optimal: 3 },
+    { start: 'BIG', end: 'FAT', optimal: 3 },
+    { start: 'MAN', end: 'BOY', optimal: 3 },
+    { start: 'WET', end: 'DRY', optimal: 5 },
+    { start: 'PIG', end: 'STY', optimal: 4 },
+    { start: 'HOT', end: 'CUP', optimal: 3 },
+    { start: 'RED', end: 'TAN', optimal: 3 },
+    { start: 'HIT', end: 'RUN', optimal: 3 },
+    { start: 'CAR', end: 'BUS', optimal: 3 },
+    { start: 'FOX', end: 'HEN', optimal: 3 },
+  ],
+  medium: [
+    { start: 'COLD', end: 'WARM', optimal: 4 },
+    { start: 'HEAD', end: 'TAIL', optimal: 5 },
+    { start: 'LOVE', end: 'HATE', optimal: 4 },
+    { start: 'FAST', end: 'SLOW', optimal: 4 },
+    { start: 'FIRE', end: 'COLD', optimal: 5 },
+    { start: 'LEAD', end: 'GOLD', optimal: 3 },
+    { start: 'SICK', end: 'WELL', optimal: 4 },
+    { start: 'DAWN', end: 'DUSK', optimal: 3 },
+    { start: 'RISE', end: 'FALL', optimal: 4 },
+    { start: 'HAND', end: 'FOOT', optimal: 5 },
+  ],
+  hard: [
+    { start: 'BLACK', end: 'WHITE', optimal: 7 },
+    { start: 'NIGHT', end: 'LIGHT', optimal: 2 },
+    { start: 'BRAIN', end: 'BRAWN', optimal: 3 },
+    { start: 'FLAME', end: 'BLAZE', optimal: 2 },
+    { start: 'CRANE', end: 'DRONE', optimal: 2 },
+    { start: 'STEAL', end: 'STEAM', optimal: 1 },
+    { start: 'STONE', end: 'STOVE', optimal: 1 },
+    { start: 'SPEAR', end: 'SWEAR', optimal: 1 },
+    { start: 'STARE', end: 'STORE', optimal: 1 },
+    { start: 'GRIND', end: 'GRAND', optimal: 2 },
+  ]
+};
+
+const THREE = 'AAH,AAL,AAS,ABA,ABO,ABS,ABY,ACE,ACT,ADD,ADO,ADS,ADZ,AFF,AFT,AGA,AGE,AGO,AGS,AHA,AHI,AHS,AID,AIM,AIN,AIR,AIS,AIT,ALA,ALB,ALE,ALL,ALP,ALS,ALT,AMA,AMI,AMP,AMU,ANA,AND,ANE,ANI,ANT,ANY,APE,APO,APP,APT,ARB,ARC,ARE,ARF,ARK,ARM,ARS,ART,ASH,ASK,ASP,ASS,ATE,ATT,AUK,AVA,AVE,AVO,AWA,AWE,AWL,AWN,AXE,AYE,AYS,AZO,BAA,BAD,BAG,BAH,BAM,BAN,BAP,BAR,BAS,BAT,BAY,BED,BEE,BEG,BEL,BEN,BES,BET,BEY,BIB,BID,BIG,BIN,BIS,BIT,BIZ,BOA,BOB,BOD,BOG,BOP,BOS,BOT,BOW,BOX,BOY,BRA,BRO,BRR,BUB,BUD,BUG,BUM,BUN,BUP,BUR,BUS,BUT,BUY,BYE,BYS,CAB,CAD,CAM,CAN,CAP,CAR,CAT,CAW,CEE,CEL,CEP,CHI,CIG,CIS,COB,COD,COG,COL,CON,COO,COP,COR,COS,COT,COW,COX,COY,COZ,CRU,CRY,CUB,CUD,CUE,CUM,CUP,CUR,CUT,CWM,DAB,DAD,DAG,DAH,DAK,DAL,DAM,DAP,DAW,DAY,DEB,DEE,DEL,DEN,DEV,DEW,DEX,DEY,DIB,DID,DIE,DIF,DIG,DIM,DIN,DIP,DIS,DIT,DOC,DOE,DOG,DOL,DOM,DON,DOP,DOR,DOS,DOT,DOW,DRY,DUB,DUD,DUE,DUG,DUH,DUI,DUN,DUO,DUP,DYE,EAR,EAT,EAU,EEL,EEK,EGG,EGO,EKE,ELD,ELF,ELK,ELL,ELM,ELS,EME,EMS,EMU,END,ENG,ENS,EON,ERA,ERE,ERG,ERN,ERR,ERS,ESS,ETA,ETH,EVE,EWE,EYE,FAB,FAD,FAG,FAN,FAR,FAS,FAT,FAX,FAY,FED,FEE,FEH,FEM,FEN,FER,FES,FET,FEU,FEW,FEY,FEZ,FIB,FID,FIE,FIG,FIN,FIR,FIS,FIT,FIX,FIZ,FLU,FLY,FOB,FOE,FOG,FOH,FON,FOP,FOR,FOU,FOX,FOY,FRO,FRY,FUB,FUG,FUN,FUR,GAB,GAD,GAE,GAG,GAL,GAM,GAN,GAP,GAR,GAS,GAT,GAY,GED,GEE,GEL,GEM,GEN,GET,GEY,GHI,GIB,GID,GIE,GIG,GIN,GIP,GIT,GNU,GOA,GOB,GOD,GOO,GOR,GOS,GOT,GOX,GUL,GUM,GUN,GUP,GUS,GUT,GUV,GUY,GYM,GYP,HAD,HAE,HAG,HAH,HAJ,HAM,HAO,HAP,HAS,HAT,HAW,HAY,HEH,HEN,HEP,HER,HES,HET,HEW,HEX,HEY,HIC,HID,HIE,HIM,HIN,HIP,HIS,HIT,HMM,HOB,HOD,HOE,HOG,HOP,HOT,HOW,HOY,HUB,HUE,HUG,HUH,HUM,HUN,HUP,HUT,HYP,ICE,ICH,ICK,ICY,IDS,IFF,IFS,IGG,ILK,ILL,IMP,INK,INN,INS,ION,IRE,IRK,ISM,ITS,IVY,JAB,JAG,JAM,JAR,JAW,JAY,JEE,JET,JIB,JIG,JIN,JOB,JOE,JOG,JOT,JOW,JOY,JUG,JUN,JUS,JUT,KAB,KAE,KAF,KAS,KAT,KAY,KEA,KED,KEG,KEN,KEP,KEX,KEY,KHI,KID,KIN,KIP,KIR,KIS,KIT,KOA,KOB,KOI,KOP,KOR,KOS,KUE,LAB,LAC,LAD,LAG,LAM,LAP,LAR,LAS,LAT,LAV,LAW,LAX,LAY,LEA,LED,LEE,LEG,LEI,LEK,LES,LET,LEU,LEV,LEX,LEY,LIB,LID,LIE,LIN,LIP,LIS,LIT,LOG,LOO,LOP,LOT,LOW,LUG,LUV,LUX,LYE,MAC,MAD,MAE,MAG,MAN,MAP,MAR,MAS,MAT,MAW,MAX,MAY,MED,MEL,MEM,MEN,MET,MEW,MHO,MIB,MIC,MID,MIG,MIL,MIM,MIR,MIS,MIX,MOA,MOB,MOC,MOD,MOG,MOL,MOM,MON,MOO,MOP,MOR,MOS,MOT,MOW,MUD,MUG,MUM,MUN,MUS,MUT,MUX,NAB,NAE,NAG,NAH,NAM,NAN,NAP,NAW,NAY,NEE,NET,NEW,NIB,NIL,NIM,NIP,NIT,NIX,NOB,NOD,NOG,NOM,NOO,NOR,NOS,NOT,NOW,NTH,NUB,NUN,NUS,NUT,OAF,OAK,OAR,OAT,OBE,OBI,OCA,ODD,ODE,ODS,OES,OFF,OFT,OHM,OHO,OHS,OIL,OKA,OKE,OLD,OLE,OMS,ONE,ONO,ONS,OOH,OOT,OPE,OPS,OPT,ORA,ORB,ORC,ORE,ORS,ORT,OSE,OUD,OUR,OUT,OVA,OWE,OWL,OWN,OXO,OXY,PAC,PAD,PAH,PAL,PAM,PAN,PAP,PAR,PAS,PAT,PAW,PAX,PAY,PEA,PEC,PED,PEE,PEG,PEH,PEN,PEP,PER,PES,PET,PEW,PHI,PHO,PIA,PIC,PIE,PIG,PIN,PIP,PIS,PIT,PIU,PIX,PLY,POD,POH,POI,POL,POM,POP,POT,POW,POX,PRO,PRY,PSI,PUB,PUD,PUG,PUL,PUN,PUP,PUR,PUS,PUT,PYA,PYE,PYX,QAT,QIS,QUA,RAD,RAG,RAH,RAI,RAJ,RAM,RAN,RAP,RAS,RAT,RAW,RAX,RAY,REB,REC,RED,REE,REF,REG,REI,REM,REP,RES,RET,REV,REX,RHO,RIA,RIB,RID,RIF,RIG,RIM,RIN,RIP,ROB,ROC,ROD,ROE,ROM,ROT,ROW,RUB,RUE,RUG,RUM,RUN,RUT,RYA,RYE,SAB,SAC,SAD,SAE,SAG,SAL,SAN,SAP,SAT,SAU,SAW,SAX,SAY,SEA,SEC,SEE,SEG,SEI,SEL,SEN,SER,SET,SEW,SHA,SHE,SHH,SHY,SIB,SIC,SIM,SIN,SIP,SIR,SIS,SIT,SIX,SKA,SKI,SKY,SLY,SOB,SOD,SOL,SOM,SON,SOP,SOS,SOT,SOU,SOW,SOX,SOY,SPA,SPY,STY,SUB,SUM,SUN,SUP,SUQ,TAB,TAD,TAE,TAG,TAJ,TAM,TAN,TAO,TAP,TAR,TAS,TAT,TAU,TAV,TAW,TAX,TEA,TED,TEE,TEG,TEN,TET,TEW,THE,THO,THY,TIC,TIE,TIN,TIP,TIS,TIT,TOD,TOE,TOG,TOM,TON,TOO,TOP,TOR,TOT,TOW,TOY,TSK,TUB,TUG,TUI,TUN,TUP,TUT,TUX,TWA,TWO,TYE,UDO,UGH,UKE,ULE,ULU,UMM,UMP,UNI,UNS,UPO,UPS,URB,URD,URN,URP,URS,USE,UTA,UTE,UTS,VAC,VAN,VAR,VAS,VAT,VAU,VAV,VAW,VEE,VEG,VET,VEX,VIA,VID,VIE,VIG,VIM,VIS,VOW,VOX,VUG,WAB,WAD,WAE,WAG,WAN,WAP,WAR,WAS,WAT,WAW,WAX,WAY,WEB,WED,WEE,WEN,WET,WHA,WHO,WHY,WIG,WIN,WIS,WIT,WIZ,WOE,WOG,WOK,WON,WOO,WOP,WOS,WOT,WOW,YAH,YAK,YAM,YAP,YAR,YAW,YAY,YEA,YEH,YEN,YEP,YES,YET,YEW,YID,YIN,YIP,YOB,YOD,YOK,YOM,YON,YOU,YOW,YUK,YUM,YUP,ZAG,ZAP,ZAX,ZED,ZEE,ZEK,ZEN,ZEP,ZIG,ZIN,ZIP,ZIT,ZOA,ZOO';
+const FOUR = 'ABLE,ACHE,ACID,ACME,ACNE,ACRE,AGED,AIDE,AIRY,AJAR,AKIN,ALLY,ALSO,AMEN,AMID,AMOK,ANTS,APES,ARCH,AREA,ARIA,ARMY,ARTS,ATOM,AUNT,AUTO,AVID,AWAY,AXED,AXLE,BABE,BABY,BACK,BADE,BAIL,BAIT,BAKE,BALD,BALE,BALL,BALM,BAND,BANE,BANG,BANK,BARE,BARK,BARN,BASE,BASH,BASK,BASS,BATH,BAWL,BEAD,BEAK,BEAM,BEAN,BEAR,BEAT,BEDS,BEEF,BEEN,BEER,BELL,BELT,BEND,BENT,BERG,BEST,BETA,BIAS,BILE,BILL,BIND,BIRD,BITE,BITS,BLAH,BLED,BLEW,BLIP,BLOB,BLOC,BLOG,BLOT,BLOW,BLUE,BLUR,BOAR,BOAT,BODY,BOLD,BOLT,BOMB,BOND,BONE,BOOK,BOOM,BOON,BOOT,BORE,BORN,BOSS,BOTH,BOUT,BOWL,BOWS,BOXY,BOYS,BRAG,BRAN,BRAT,BRAY,BRED,BREW,BRIM,BRIT,BROW,BUCK,BULB,BULK,BULL,BUMP,BUMS,BUNK,BUOY,BURN,BURP,BURY,BUSH,BUST,BUSY,BUZZ,CAFE,CAGE,CAKE,CALF,CALL,CALM,CAME,CAMP,CANE,CAPE,CAPS,CARD,CARE,CARP,CART,CASE,CASH,CASK,CAST,CAVE,CELL,CENT,CHAD,CHAP,CHAR,CHAT,CHEF,CHIN,CHIP,CHIT,CHOP,CHOW,CHUG,CITE,CITY,CLAD,CLAM,CLAN,CLAP,CLAW,CLAY,CLEF,CLIP,CLOG,CLOP,CLOT,CLOY,CLUB,CLUE,COAL,COAT,COCK,CODE,COGS,COIL,COIN,COKE,COLD,COLE,COLT,COMB,COME,CONE,COOK,COOL,COOP,COPE,COPY,CORD,CORE,CORK,CORN,COST,COSY,COUP,COVE,COZY,CRAB,CRAM,CREW,CRIB,CROP,CROW,CRUD,CUBE,CUBS,CUES,CUFF,CULT,CUPS,CURB,CURD,CURE,CURL,CUTE,CUTS,DALE,DAME,DAMP,DAMS,DANE,DANK,DARE,DARK,DARN,DART,DASH,DATA,DATE,DAWN,DAYS,DAZE,DEAD,DEAF,DEAL,DEAN,DEAR,DEBT,DECK,DEED,DEEM,DEEP,DEER,DEFT,DEMO,DENT,DENY,DESK,DIAL,DICE,DIED,DIES,DIET,DIGS,DIME,DINE,DINT,DIRE,DIRT,DISC,DISH,DISK,DIVE,DOCK,DOES,DOLE,DOLL,DOME,DONE,DOOM,DOOR,DOPE,DORK,DOSE,DOTE,DOTS,DOUR,DOVE,DOWN,DOZE,DOZY,DRAB,DRAG,DRAW,DREW,DRIP,DROP,DRUM,DUAL,DUBS,DUCK,DUCT,DUDE,DUEL,DUET,DUFF,DUKE,DULL,DUMB,DUMP,DUNE,DUNG,DUNK,DUPE,DUSK,DUST,DUTY,DYED,DYER,DYKE,EACH,EARL,EARN,EARS,EASE,EAST,EASY,EATS,EAVE,EDGE,EDGY,EDIT,EELS,EGGS,EKED,ELSE,EMIT,ENDS,ENVY,EPIC,EVEN,EVER,EVIL,EXAM,EXEC,EXES,EXIT,EYED,EYES,FACE,FACT,FADE,FAIL,FAIR,FAKE,FALL,FAME,FANG,FANS,FARE,FARM,FART,FAST,FATE,FAWN,FAZE,FEAR,FEAT,FEED,FEEL,FEES,FEET,FELL,FELT,FEND,FERN,FEST,FEUD,FIAT,FIGS,FILE,FILL,FILM,FIND,FINE,FIRE,FIRM,FISH,FIST,FLAG,FLAK,FLAM,FLAN,FLAP,FLAT,FLAW,FLAX,FLAY,FLEA,FLED,FLEE,FLEW,FLEX,FLIP,FLIT,FLOG,FLOP,FLOW,FLUB,FLUE,FLUX,FOAM,FOBS,FOES,FOIL,FOLD,FOLK,FOND,FONT,FOOD,FOOL,FOOT,FORD,FORE,FORK,FORM,FORT,FOUL,FOUR,FOWL,FOXY,FRAY,FREE,FRET,FROG,FROM,FUEL,FULL,FUME,FUMY,FUND,FUNK,FURY,FUSE,FUSS,FUZZ,GAGS,GAIN,GAIT,GALA,GALE,GALL,GAME,GAMY,GANG,GAPE,GAPS,GARB,GASH,GASP,GATE,GAVE,GAWK,GAZE,GEAR,GEED,GEEK,GELD,GENE,GERM,GIFT,GILD,GILL,GILT,GIST,GIVE,GLAD,GLAM,GLEE,GLEN,GLIB,GLOW,GLUE,GLUM,GLUT,GNAT,GNAW,GOAD,GOAT,GOBS,GODS,GOES,GOLD,GOLF,GONE,GONG,GOOD,GOOF,GORE,GORY,GOSH,GRAB,GRAM,GRAY,GREW,GREY,GRID,GRIM,GRIN,GRIP,GRIT,GROG,GROW,GRUB,GULF,GULL,GULP,GUMS,GUNK,GUNS,GUSH,GUST,GUTS,GUYS,HACK,HAIL,HAIR,HALE,HALF,HALL,HALT,HAMS,HAND,HANG,HANK,HARE,HARK,HARM,HARP,HASH,HASP,HAST,HATE,HATH,HAUL,HAVE,HAWK,HAZE,HAZY,HEAD,HEAL,HEAP,HEAR,HEAT,HEED,HEEL,HEFT,HEIR,HELD,HELL,HELM,HELP,HEMP,HENS,HERB,HERD,HERE,HERO,HERS,HEWN,HIDE,HIGH,HIKE,HILL,HILT,HIND,HINT,HIPS,HIRE,HITS,HIVE,HOAX,HOBS,HOCK,HOED,HOES,HOLD,HOLE,HOLY,HOME,HONE,HOOD,HOOF,HOOK,HOOP,HOOT,HOPE,HOPS,HORN,HOSE,HOST,HOUR,HOWL,HUBS,HUED,HUES,HUFF,HUGE,HUGS,HULL,HUMP,HUMS,HUNG,HUNK,HUNT,HURL,HURT,HUSH,HUSK,HYMN,HYPE,ICED,ICES,ICON,IDEA,IDLE,IDLY,IFFY,IMPS,INCH,INFO,INNS,IONS,IRIS,IRKS,IRON,ISLE,ITCH,ITEM,JABS,JACK,JADE,JAGS,JAIL,JAKE,JAMB,JAMS,JAPE,JARS,JAWS,JAYS,JAZZ,JEAN,JEER,JELL,JERK,JEST,JETS,JIBE,JIGS,JILT,JIVE,JOBS,JOCK,JOGS,JOIN,JOKE,JOLT,JOSH,JOTS,JOWL,JOYS,JUDO,JUGS,JUMP,JUNE,JUNK,JURY,JUST,JUTS,KALE,KEEN,KEEP,KEGS,KELP,KEPT,KEYS,KICK,KIDS,KILL,KILT,KIND,KING,KINK,KISS,KITE,KITS,KNEE,KNEW,KNIT,KNOB,KNOT,KNOW,LACE,LACK,LACY,LADS,LAID,LAIR,LAKE,LAME,LAMP,LAMS,LAND,LANE,LAPS,LARD,LARK,LARS,LASH,LASS,LAST,LATE,LAUD,LAVA,LAWN,LAWS,LAYS,LAZY,LEAD,LEAF,LEAK,LEAN,LEAP,LEFT,LEND,LENS,LENT,LESS,LEST,LEVY,LIAR,LICE,LICK,LIED,LIEN,LIES,LIEU,LIFE,LIFT,LIKE,LILY,LIMB,LIME,LIMP,LINE,LINK,LINT,LION,LIPS,LIST,LIVE,LOAD,LOAF,LOAM,LOAN,LOBE,LOCK,LODE,LOFT,LOGE,LOGO,LOGS,LONE,LONG,LOOK,LOOM,LOOP,LOOT,LORD,LORE,LORN,LOSE,LOSS,LOST,LOTS,LOUD,LOVE,LOWS,LUCK,LUGE,LULL,LUMP,LUNG,LURE,LURK,LUSH,LUST,LUTE,LYNX,LYRE,MACE,MADE,MAID,MAIL,MAIM,MAIN,MAKE,MALE,MALL,MALT,MANE,MANY,MAPS,MARE,MARK,MARS,MASH,MASK,MASS,MAST,MATE,MATH,MAZE,MEAD,MEAL,MEAN,MEAT,MEEK,MEET,MELD,MELT,MEMO,MEND,MENU,MEOW,MERE,MESH,MESS,METS,MICA,MICE,MILD,MILE,MILK,MILL,MIME,MIND,MINE,MINI,MINK,MINT,MIRE,MIRK,MISS,MIST,MITE,MITT,MOAN,MOAT,MOBS,MOCK,MODE,MODS,MOLD,MOLE,MOLT,MONK,MOOD,MOON,MOOR,MOOT,MOPE,MOPS,MORE,MORN,MOSS,MOST,MOTH,MOVE,MUCH,MUCK,MUDS,MUFF,MUGS,MULE,MULL,MUNG,MURK,MUSE,MUSH,MUSK,MUST,MUTE,MUTT,MYTH,NABS,NAGS,NAIL,NAME,NAPE,NAPS,NAVE,NAVY,NEAR,NEAT,NECK,NEED,NEON,NERD,NEST,NETS,NEWS,NEWT,NEXT,NICE,NICK,NINE,NIPS,NODE,NOEL,NONE,NOOK,NOON,NOPE,NORM,NOSE,NOSY,NOTE,NOUN,NOVA,NUBS,NUDE,NULL,NUMB,NUNS,NUTS,OAFS,OAKS,OARS,OATH,OATS,OBEY,OBOE,ODDS,ODES,ODOR,OFFS,OGLE,OGRE,OHMS,OINK,OILS,OILY,OKAY,OLDS,OMEN,OMIT,ONCE,ONES,ONLY,ONTO,ONUS,OOZE,OPAL,OPEN,OPTS,OPUS,ORAL,ORBS,ORCA,ORES,OUCH,OURS,OUST,OUTS,OVAL,OVEN,OVER,OWED,OWES,OWLS,OWNS,OXEN,PACE,PACK,PACT,PADS,PAGE,PAID,PAIL,PAIN,PAIR,PALE,PALL,PALM,PALS,PANE,PANG,PANS,PANT,PAPA,PARE,PARK,PARS,PART,PASS,PAST,PATH,PAVE,PAWN,PAWS,PAYS,PEAK,PEAL,PEAR,PEAS,PEAT,PECK,PEEL,PEER,PEGS,PELT,PEND,PENS,PENT,PEON,PEPS,PERK,PERM,PERT,PESO,PEST,PETS,PEWS,PICK,PIED,PIER,PIES,PIGS,PIKE,PILE,PILL,PIMP,PINE,PING,PINK,PINS,PINT,PIPE,PIPS,PITS,PITY,PLAN,PLAT,PLAY,PLEA,PLED,PLOD,PLOP,PLOT,PLOW,PLOY,PLUG,PLUM,PLUS,POCK,PODS,POEM,POET,POKE,POKY,POLE,POLL,POLO,POMP,POND,PONY,POOH,POOL,POOP,POOR,POPE,POPS,PORE,PORK,PORT,POSE,POSH,POST,POSY,POTS,POUR,POUT,PRAY,PREY,PRIG,PRIM,PROD,PROM,PROP,PROS,PROW,PUBS,PUCK,PUDS,PUFF,PUGS,PULL,PULP,PUMP,PUNS,PUPA,PUPS,PURE,PURR,PUSH,PUTS,PUTT,PUTZ,QUAD,QUAY,QUID,QUIP,QUIT,QUIZ,RACE,RACK,RACY,RAFT,RAGE,RAGS,RAID,RAIL,RAIN,RAKE,RAMP,RAMS,RAND,RANG,RANK,RANT,RAPS,RARE,RASH,RASP,RATE,RATS,RAVE,RAYS,RAZE,READ,REAL,REAM,REAP,REAR,REDO,REED,REEF,REEK,REEL,REIN,RELY,REND,RENT,REST,RICE,RICH,RIDE,RIDS,RIFE,RIFT,RIGS,RILE,RILL,RIME,RIMS,RIND,RING,RINK,RIOT,RIPE,RIPS,RISE,RISK,RITE,ROAD,ROAM,ROAR,ROBE,ROBS,ROCK,RODE,RODS,ROLE,ROLL,ROMP,ROOD,ROOF,ROOK,ROOM,ROOT,ROPE,ROPY,ROSE,ROSY,ROTE,ROTS,ROUT,ROVE,ROWS,RUBS,RUBY,RUCK,RUDE,RUED,RUES,RUFF,RUGS,RUIN,RULE,RUMP,RUMS,RUNE,RUNG,RUNS,RUNT,RUSE,RUSH,RUSK,RUST,RUTS,SACK,SAFE,SAGA,SAGE,SAGO,SAID,SAIL,SAKE,SALE,SALT,SAME,SAND,SANE,SANG,SANK,SARI,SASH,SASS,SAVE,SAWN,SAWS,SAYS,SCAB,SCAM,SCAN,SCAR,SEAL,SEAM,SEAR,SEAS,SEAT,SECT,SEED,SEEK,SEEM,SEEN,SEEP,SEER,SEES,SELF,SELL,SEND,SENT,SEPT,SETS,SEWN,SHED,SHIM,SHIN,SHIP,SHOD,SHOE,SHOO,SHOP,SHOT,SHOW,SHUN,SHUT,SICK,SIDE,SIFT,SIGH,SIGN,SILK,SILL,SILO,SILT,SINE,SING,SINK,SIPS,SIRE,SIRS,SITE,SITS,SIZE,SKID,SKIM,SKIN,SKIP,SKIT,SLAB,SLAG,SLAM,SLAP,SLAT,SLAW,SLAY,SLED,SLEW,SLID,SLIM,SLIP,SLIT,SLOB,SLOE,SLOG,SLOP,SLOT,SLOW,SLUG,SLUM,SLUR,SMOG,SNAP,SNAG,SNIP,SNIT,SNOB,SNOT,SNOW,SNUB,SNUG,SOAK,SOAP,SOAR,SOBS,SOCK,SODA,SODS,SOFA,SOFT,SOIL,SOLD,SOLE,SOLO,SOME,SONG,SONS,SOON,SOOT,SORE,SORT,SOUL,SOUP,SOUR,SOWN,SOWS,SOYA,SPAN,SPAR,SPAS,SPAT,SPEC,SPED,SPIN,SPIT,SPOT,SPRY,SPUD,SPUN,SPUR,STAB,STAG,STAR,STAY,STEM,STEP,STEW,STIR,STOP,STOW,STUB,STUD,STUN,SUBS,SUCH,SUCK,SUDS,SUED,SUES,SUIT,SULK,SUMO,SUMP,SUMS,SUNG,SUNK,SUNS,SURE,SURF,SWAB,SWAM,SWAN,SWAP,SWAT,SWAY,SWIM,SWUM,TABS,TACK,TACT,TADS,TAGS,TAIL,TAKE,TALE,TALK,TALL,TAME,TAMP,TAMS,TANG,TANK,TANS,TAPE,TAPS,TARN,TARP,TARS,TART,TASK,TAXI,TEAK,TEAL,TEAM,TEAR,TEAS,TEAT,TEEM,TEEN,TELL,TEMP,TEND,TENS,TENT,TERM,TERN,TEST,TEXT,THAN,THAT,THAW,THEM,THEN,THEY,THIN,THIS,THUD,THUG,THUS,TICK,TIDE,TIDY,TIED,TIER,TIES,TIFF,TIKE,TILE,TILL,TILT,TIME,TINE,TING,TINS,TINT,TINY,TIPS,TIRE,TOAD,TOCK,TOED,TOES,TOIL,TOLD,TOLL,TOMB,TOME,TONE,TONS,TOOK,TOOL,TOOT,TOPS,TORE,TORN,TORT,TOSS,TOTE,TOUR,TOUT,TOWN,TOYS,TRAM,TRAP,TRAY,TREE,TREK,TRIM,TRIO,TRIP,TROD,TROT,TRUE,TSAR,TUBA,TUBE,TUBS,TUCK,TUFT,TUGS,TUNA,TUNE,TURF,TURN,TUSK,TUTU,TWIG,TWIN,TWIT,TWOS,TYPE,UGLY,UNDO,UNIT,UNTO,UPON,URGE,URNS,USED,USER,USES,VAIN,VALE,VAMP,VANE,VARY,VASE,VAST,VATS,VEAL,VEER,VEIL,VEIN,VEND,VENT,VERB,VERY,VEST,VETO,VETS,VIAL,VICE,VIED,VIES,VIEW,VILE,VINE,VISA,VOID,VOLE,VOLT,VOTE,VOWS,WADE,WADS,WAGE,WAGS,WAIL,WAIT,WAKE,WALK,WALL,WAND,WANE,WANT,WARD,WARM,WARN,WARP,WARS,WART,WARY,WASH,WASP,WAVE,WAVY,WAXY,WAYS,WEAK,WEAN,WEAR,WEDS,WEED,WEEK,WEEP,WELD,WELL,WELT,WENT,WEPT,WERE,WEST,WETS,WHAT,WHEN,WHET,WHEY,WHIG,WHIM,WHIP,WHIR,WHIZ,WHOM,WICK,WIDE,WIFE,WIGS,WILD,WILL,WILT,WILY,WIMP,WIND,WINE,WING,WINK,WINS,WIPE,WIRE,WIRY,WISE,WISH,WISP,WIST,WITH,WITS,WIVE,WOKE,WOLF,WOMB,WONT,WOOD,WOOF,WOOL,WORD,WORE,WORK,WORM,WORN,WORT,WOVE,WRAP,WREN,WRIT,YAKS,YAMS,YANK,YAPS,YARD,YARN,YAWL,YAWN,YAWS,YEAH,YEAR,YELL,YELP,YENS,YEPS,YETI,YEWS,YOGA,YOKE,YOLK,YOUR,YOWL,YULE,ZANY,ZAPS,ZEAL,ZERO,ZEST,ZINC,ZING,ZIPS,ZITS,ZONE,ZOOM,ZOOS';
+const FIVE = 'ABORT,ABOUT,ABOVE,ABUSE,ACORN,ACUTE,ADMIT,ADOPT,ADULT,AFTER,AGAIN,AGENT,AGREE,AHEAD,ALARM,ALBUM,ALERT,ALIEN,ALIGN,ALIKE,ALIVE,ALLAY,ALLEY,ALLOT,ALLOW,ALLOY,ALONE,ALONG,ALTER,AMAZE,AMPLE,AMUSE,ANGEL,ANGER,ANGLE,ANGRY,ANKLE,APART,APPLE,APPLY,ARENA,ARGUE,ARISE,ARMOR,AROMA,ARRAY,ASIDE,ASSET,ATLAS,ATTIC,AUDIO,AVOID,AWAKE,AWARD,AWARE,AWFUL,BADGE,BADLY,BASIC,BASIN,BASIS,BATCH,BEACH,BEARD,BEAST,BEGAN,BEGIN,BEING,BELLY,BELOW,BENCH,BERRY,BIRTH,BLACK,BLADE,BLAME,BLAND,BLANK,BLAST,BLAZE,BLEAK,BLEED,BLEND,BLESS,BLIND,BLINK,BLISS,BLITZ,BLOCK,BLOND,BLOOD,BLOOM,BLOWN,BLUES,BLUFF,BLUNT,BLURT,BLUSH,BOARD,BOAST,BONES,BONUS,BOOTH,BOUND,BRAID,BRAIN,BRAND,BRAVE,BRAWN,BREAD,BREAK,BREED,BRICK,BRIDE,BRIEF,BRING,BRINK,BRISK,BROAD,BROIL,BROKE,BROOK,BROOM,BROTH,BROWN,BRUSH,BUILD,BUILT,BUNCH,BURST,BUYER,CABIN,CABLE,CAMEL,CANDY,CARGO,CARRY,CATCH,CATER,CAUSE,CEDAR,CHAIN,CHAIR,CHALK,CHAMP,CHANT,CHAOS,CHARM,CHART,CHASE,CHEAP,CHEAT,CHECK,CHEEK,CHEER,CHESS,CHEST,CHIEF,CHILD,CHILL,CHINA,CHINE,CHINK,CHIPS,CHOIR,CHORD,CHOSE,CHUNK,CIVIC,CIVIL,CLAIM,CLAMP,CLASH,CLASP,CLASS,CLEAN,CLEAR,CLERK,CLICK,CLIFF,CLIMB,CLING,CLINK,CLOCK,CLONE,CLOSE,CLOTH,CLOUD,CLOWN,COACH,COAST,COLOR,COMET,COMIC,CORAL,COSTS,COUCH,COULD,COUNT,COURT,COVER,CRACK,CRAFT,CRANE,CRASH,CRAWL,CRAZE,CRAZY,CREAK,CREAM,CREEK,CREEP,CREST,CRIME,CRISP,CRONE,CROSS,CROWD,CROWN,CRUDE,CRUEL,CRUSH,CURVE,CYCLE,DAILY,DANCE,DEATH,DECAY,DECOY,DELAY,DELTA,DEMON,DENSE,DEPTH,DERBY,DEVIL,DIARY,DIRTY,DITCH,DIZZY,DODGE,DONOR,DOUBT,DOUGH,DRAFT,DRAIN,DRAKE,DRAMA,DRANK,DRAPE,DRAWL,DRAWN,DREAD,DREAM,DRESS,DRIED,DRIFT,DRILL,DRINK,DRIVE,DRONE,DROOL,DROOP,DROWN,DRUNK,DRYER,DUSTY,DWARF,DWELL,EAGER,EARLY,EARTH,EATEN,EATER,EIGHT,ELDER,ELECT,ELITE,EMBED,EMBER,EMPTY,ENDOW,ENEMY,ENJOY,ENTER,ENTRY,EQUAL,EQUIP,ERASE,ERODE,ERROR,ESSAY,EVENT,EVERY,EXACT,EXALT,EXCEL,EXILE,EXIST,EXPEL,EXTRA,FABLE,FACED,FACET,FAINT,FAIRY,FAITH,FALSE,FANCY,FATAL,FAULT,FAUNA,FEAST,FEIGN,FENCE,FERRY,FETCH,FEVER,FIBER,FIELD,FIEND,FIERY,FIFTY,FIGHT,FINAL,FIRST,FIXED,FLAME,FLANK,FLARE,FLASH,FLASK,FLEET,FLESH,FLICK,FLING,FLINT,FLIRT,FLOAT,FLOCK,FLOOD,FLOOR,FLORA,FLOUR,FLOWN,FLUID,FLUNG,FLUSH,FLUTE,FOCAL,FOCUS,FOGGY,FORCE,FORGE,FORTH,FORTY,FORUM,FOUND,FRAME,FRANK,FRAUD,FREAK,FREED,FRESH,FRONT,FROST,FROZE,FRUIT,FULLY,FUNGI,FUNNY,FUZZY,GAUGE,GHAST,GAUNT,GHOST,GIANT,GIVEN,GIVER,GLAND,GLARE,GLASS,GLEAM,GLIDE,GLOBE,GLOOM,GLORY,GLOSS,GLOVE,GOING,GRACE,GRADE,GRAIN,GRAND,GRANT,GRAPE,GRAPH,GRASP,GRASS,GRATE,GRAVE,GRAVY,GREAT,GREED,GREEN,GREET,GRIEF,GRILL,GRIND,GROAN,GROOM,GROPE,GROSS,GROUP,GROVE,GROWL,GROWN,GUARD,GUESS,GUEST,GUIDE,GUILD,GUILT,GUISE,GULCH,GULLY,HABIT,HAPPY,HARSH,HASTE,HASTY,HATCH,HAUNT,HAVEN,HEART,HEAVY,HEDGE,HEIST,HENCE,HONOR,HORSE,HOTEL,HOUND,HOUSE,HUMAN,HUMOR,HURRY,HYPER,IDEAL,IMAGE,IMPLY,INCUR,INDEX,INFER,INNER,INPUT,INTRO,IVORY,ISSUE,JEWEL,JOINT,JOKER,JOLLY,JUDGE,JUICE,JUICY,JUMBO,JUMPY,KAYAK,KNACK,KNEEL,KNIFE,KNOCK,KNOLL,KNOWN,LABEL,LABOR,LANCE,LARGE,LASER,LATCH,LATER,LAUGH,LAYER,LEARN,LEASE,LEAST,LEAVE,LEDGE,LEGAL,LEMON,LEVEL,LEVER,LIGHT,LIMIT,LINEN,LINER,LIVER,LOCAL,LODGE,LOFTY,LOGIC,LOOSE,LORRY,LOVER,LOWER,LOYAL,LUCKY,LUNAR,LUNCH,LURCH,LYRIC,MAGIC,MAJOR,MANOR,MARCH,MARSH,MATCH,MAYOR,MEANT,MEDAL,MEDIA,MERCY,MERGE,MERIT,MERRY,METAL,METER,MIGHT,MINCE,MINOR,MINUS,MIRTH,MIXER,MODEL,MONEY,MONTH,MOOSE,MORAL,MOUNT,MOURN,MOUSE,MOUTH,MOVER,MOVIE,MUCUS,MURAL,MUSIC,MYRRH,MYTHS,NAIVE,NAMED,NASTY,NAVAL,NERVE,NEVER,NIGHT,NOBLE,NOISE,NORTH,NOTCH,NOTED,NOVEL,NUDGE,NURSE,OCCUR,OCEAN,OFFER,OFTEN,OLIVE,ONSET,OPERA,ORBIT,ORDER,OTHER,OUGHT,OUTER,OUTDO,OVERT,OWNER,OXIDE,PACED,PADDY,PAINT,PANEL,PANIC,PAPER,PARTY,PASTE,PATCH,PAUSE,PEACE,PEACH,PEARL,PENAL,PENNY,PERCH,PERIL,PERKY,PHASE,PHONE,PHOTO,PIANO,PIECE,PILOT,PINCH,PITCH,PIXEL,PIZZA,PLACE,PLAID,PLAIN,PLANE,PLANK,PLANT,PLATE,PLAZA,PLEAD,PLEAT,PLUCK,PLUMB,PLUME,PLUMP,PLUNK,POINT,POLAR,POSED,POUCH,POUND,POWER,PRANK,PRAWN,PRESS,PRICE,PRIDE,PRIME,PRINT,PRIOR,PRISM,PRIZE,PROBE,PRONE,PROOF,PROSE,PROUD,PROVE,PROWL,PRUDE,PRUNE,PSALM,PULSE,PUNCH,PUPIL,PURSE,PUSHY,QUAIL,QUALM,QUEEN,QUERY,QUEST,QUEUE,QUICK,QUIET,QUIRK,QUOTA,QUOTE,RADAR,RADIO,RAISE,RALLY,RANCH,RANGE,RAPID,REACH,REACT,READY,REALM,REBEL,REIGN,RELAX,REMIT,RENEW,REPAY,REPEL,REPLY,RIDER,RIDGE,RIFLE,RIGHT,RIGID,RIPEN,RISEN,RISKY,RIVAL,RIVER,ROBIN,ROBOT,ROCKY,ROGER,ROGUE,ROMAN,ROOST,ROUGH,ROUND,ROUTE,ROWDY,ROYAL,RUGBY,RULER,RUMOR,RURAL,RUSTY,SADLY,SAINT,SALAD,SCALE,SCARE,SCARY,SCENE,SCENT,SCOPE,SCORE,SCOUT,SENSE,SERVE,SEVEN,SHADE,SHADY,SHAFT,SHALL,SHAME,SHAPE,SHARE,SHARK,SHARP,SHAVE,SHAWL,SHEAR,SHEEN,SHEER,SHEET,SHELF,SHELL,SHIFT,SHINE,SHINY,SHIRE,SHIRT,SHOCK,SHORE,SHORT,SHOUT,SHOVE,SHOWN,SHOWY,SHRUB,SIEGE,SIGHT,SINCE,SIXTH,SIXTY,SIZED,SKILL,SKULL,SLACK,SLAIN,SLANT,SLASH,SLATE,SLAVE,SLEEK,SLEEP,SLEPT,SLICE,SLIDE,SLOPE,SMALL,SMART,SMELL,SMILE,SMITH,SMOKE,SMOKY,SNACK,SNAIL,SNAKE,SNARE,SNEAK,SOLAR,SOLID,SOLVE,SORRY,SOUND,SOUTH,SPACE,SPARE,SPARK,SPAWN,SPEAK,SPEAR,SPEED,SPELL,SPEND,SPENT,SPICE,SPICY,SPILL,SPINE,SPOKE,SPOON,SPORT,SPRAY,SQUAD,STACK,STAFF,STAGE,STAIN,STAKE,STALE,STALK,STALL,STAMP,STAND,STARE,STARK,START,STASH,STATE,STAVE,STAYS,STEAK,STEAL,STEAM,STEEL,STEEP,STEER,STERN,STICK,STIFF,STILL,STING,STINK,STOCK,STOKE,STOLE,STONE,STOOD,STOOL,STOOP,STORE,STORK,STORM,STORY,STOUT,STOVE,STRAP,STRAW,STRAY,STRIP,STUCK,STUDY,STUFF,STUMP,STUNG,STUNK,STUNT,STYLE,SUGAR,SUITE,SUNNY,SUPER,SURGE,SWAMP,SWARM,SWEAR,SWEAT,SWEEP,SWEET,SWEPT,SWIFT,SWING,SWIRL,SWORD,SWORE,SWORN,SWUNG,TABLE,TAKEN,TASTE,TASTY,TEACH,TEASE,TEETH,TEMPO,THEME,THERE,THICK,THIEF,THIGH,THING,THINK,THIRD,THORN,THOSE,THREE,THREW,THROW,THUMB,TIDAL,TIGHT,TIMER,TITLE,TODAY,TOKEN,TOTAL,TOUCH,TOUGH,TOWEL,TOWER,TOXIC,TRACE,TRACK,TRADE,TRAIL,TRAIN,TRAIT,TRAMP,TRASH,TREAD,TREAT,TREND,TRIAL,TRIBE,TRICK,TRIED,TROOP,TROUT,TRUCK,TRULY,TRUMP,TRUNK,TRUST,TRUTH,TULIP,TUMOR,TUNIC,TURBO,TURNS,TUTOR,TWAIN,TWANG,TWEED,TWICE,TWIST,UDDER,ULTRA,UNCLE,UNDER,UNFIT,UNION,UNITE,UNITY,UNLIT,UNTIL,UPPER,UPSET,URBAN,USAGE,USHER,USUAL,UTTER,VAGUE,VALID,VALOR,VALUE,VALVE,VAPOR,VAULT,VERSE,VIDEO,VIGOR,VINYL,VIOLA,VIPER,VIRAL,VIRUS,VISIT,VISOR,VISTA,VITAL,VIVID,VOCAL,VODKA,VOGUE,VOICE,VOTER,VOUCH,VOWEL,WAGES,WAGON,WASTE,WATCH,WATER,WAVER,WEARY,WEAVE,WEDGE,WEIGH,WEIRD,WHEAT,WHEEL,WHERE,WHICH,WHILE,WHINE,WHIRL,WHITE,WHOLE,WHOSE,WIDEN,WIDOW,WIDTH,WIELD,WINDY,WITCH,WOMAN,WORLD,WORRY,WORSE,WORST,WORTH,WOULD,WOUND,WRECK,WRIST,WROTE,WRATH,YACHT,YEARN,YIELD,YOUNG,YOUTH,ZEBRA,TOAST,ROAST,TREAD';
+
+const VALID_WORDS = new Set([...THREE.split(','), ...FOUR.split(','), ...FIVE.split(',')]);
+
+// ===================================================================
+// GAME STATE
+// ===================================================================
+let state = { screen: 'welcome', puzzle: null, chain: [], currentInput: [], wordLength: 0, optimalSteps: 0, moves: 0, timer: 0, timerInterval: null, hintsUsed: 0, message: null, difficulty: null, won: false };
+
+// ===================================================================
+// UTILITY
+// ===================================================================
+function diffByOne(a, b) { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++; return d === 1; }
+function letterDifference(a, b) { if (!a || !b || a.length !== b.length) return a ? a.length : 0; let d = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++; return d; }
+function getProgressColor(p) { return `rgb(${Math.round(99+(245-99)*p)},${Math.round(102+(158-102)*p)},${Math.round(241+(11-241)*p)})`; }
+function getTileColor(p) { return `rgba(${Math.round(99+(245-99)*p)},${Math.round(102+(158-102)*p)},${Math.round(241+(11-241)*p)},0.12)`; }
+function getTileBorderColor(p) { return `rgba(${Math.round(99+(245-99)*p)},${Math.round(102+(158-102)*p)},${Math.round(241+(11-241)*p)},0.4)`; }
+function formatTime(s) { return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`; }
+
+// Smart hints
+function findBestNextWord(cur, target, used) {
+  const visited = new Set(used); visited.add(cur);
+  const neighbors = [];
+  for (let pos = 0; pos < cur.length; pos++) {
+    for (let c = 65; c <= 90; c++) {
+      const ch = String.fromCharCode(c);
+      if (ch === cur[pos]) continue;
+      const w = cur.substring(0, pos) + ch + cur.substring(pos + 1);
+      if (VALID_WORDS.has(w) && !visited.has(w)) neighbors.push(w);
+    }
+  }
+  if (neighbors.includes(target)) return target;
+  let best = null, bestScore = -Infinity;
+  for (const w of neighbors) {
+    const dist = letterDifference(w, target);
+    const curDist = letterDifference(cur, target);
+    let conn = 0;
+    for (let p = 0; p < w.length; p++) for (let c = 65; c <= 90; c++) {
+      const ch = String.fromCharCode(c); if (ch === w[p]) continue;
+      const n = w.substring(0, p) + ch + w.substring(p + 1);
+      if (VALID_WORDS.has(n) && !visited.has(n)) conn++;
+    }
+    const score = (curDist - dist) * 100 + conn;
+    if (score > bestScore) { bestScore = score; best = w; }
+  }
+  return best;
+}
+
+function giveHint() {
+  const last = state.chain[state.chain.length - 1], end = state.puzzle.end;
+  if (last === end) return;
+  state.hintsUsed++; sound.play('hint');
+  if (diffByOne(last, end)) { showMessage("You're one step away!", 'info', 3500); return; }
+  const best = findBestNextWord(last, end, state.chain);
+  if (best) {
+    let pos = -1;
+    for (let i = 0; i < last.length; i++) if (last[i] !== best[i]) { pos = i; break; }
+    if (pos >= 0) {
+      state.currentInput = last.split('');
+      state.currentInput[pos] = best[pos];
+      const pn = pos === 0 ? '1st' : pos === 1 ? '2nd' : pos === 2 ? '3rd' : `${pos+1}th`;
+      showMessage(`Try "${best}" — change the ${pn} letter: ${last[pos]} → ${best[pos]}`, 'info', 5000);
+    }
+  } else { showMessage(`Try changing a letter to get closer to "${end}"`, 'info', 4000); }
+  render();
+  setTimeout(() => { const fi = document.querySelector('.input-tile'); if (fi) fi.focus(); }, 50);
+}
+
+// Confetti
+function spawnConfetti() {
+  const colors = ['#6366f1','#f59e0b','#22c55e','#ec4899','#06b6d4','#f97316'];
+  for (let i = 0; i < 60; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.cssText = `left:${Math.random()*100}vw;top:-10px;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()>0.5?'50%':'2px'};--fall-dur:${2+Math.random()*3}s;`;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 5000);
+    }, i * 30);
+  }
+}
+
+// ===================================================================
+// RENDERING
+// ===================================================================
+function render() {
+  const app = document.getElementById('app');
+  if (state.screen === 'welcome') { app.innerHTML = renderWelcome(); attachWelcomeEvents(); attachLbEvents(); }
+  else if (state.screen === 'game') { app.innerHTML = renderGame(); attachGameEvents(); }
+  else if (state.screen === 'victory') { renderVictory(); }
+}
+
+function renderWelcome() {
+  return `
+    <div class="header"><h1>Word Ladder Rush</h1><p>Transform words, one letter at a time</p></div>
+    <div class="welcome">
+      <div class="welcome-icon">⚡</div>
+      <h2>How fast can you climb?</h2>
+      <p>Change one letter at a time to transform the start word into the end word. Each step must be a real word.</p>
+      <div class="how-to"><strong>Example:</strong> COLD → CO<strong>R</strong>D → <strong>W</strong>ORD → WAR<strong>D</strong> → WAR<strong>M</strong></div>
+      <p style="margin-top:16px;font-size:0.9rem;">Choose your challenge:</p>
+      <div class="difficulty-picker">
+        <button class="diff-btn" data-diff="easy"><strong>Easy</strong><span>3 letters</span></button>
+        <button class="diff-btn" data-diff="medium"><strong>Medium</strong><span>4 letters</span></button>
+        <button class="diff-btn" data-diff="hard"><strong>Hard</strong><span>5 letters</span></button>
+      </div>
+    </div>
+    ${renderLeaderboard()}
+  `;
+}
+
+function attachWelcomeEvents() {
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => { sound.init(); sound.play('start'); startGame(btn.dataset.diff); });
+  });
+}
+
+function startGame(difficulty) {
+  const puzzles = PUZZLES[difficulty];
+  const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state = { screen: 'game', puzzle, chain: [puzzle.start], currentInput: Array(puzzle.start.length).fill(''), wordLength: puzzle.start.length, optimalSteps: puzzle.optimal, moves: 0, timer: 0, timerInterval: null, hintsUsed: 0, message: null, difficulty, won: false };
+  state.timerInterval = setInterval(() => { state.timer++; const t = document.getElementById('timer'); if (t) t.textContent = formatTime(state.timer); }, 1000);
+  render();
+  setTimeout(() => { const fi = document.querySelector('.input-tile'); if (fi) fi.focus(); }, 100);
+}
+
+function goHome() { if (state.timerInterval) clearInterval(state.timerInterval); state.screen = 'welcome'; sound.play('click'); render(); }
+
+function restartPuzzle() {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  sound.play('start');
+  const p = state.puzzle, d = state.difficulty;
+  state = { screen: 'game', puzzle: p, chain: [p.start], currentInput: Array(p.start.length).fill(''), wordLength: p.start.length, optimalSteps: p.optimal, moves: 0, timer: 0, timerInterval: null, hintsUsed: 0, message: null, difficulty: d, won: false };
+  state.timerInterval = setInterval(() => { state.timer++; const t = document.getElementById('timer'); if (t) t.textContent = formatTime(state.timer); }, 1000);
+  render();
+  setTimeout(() => { const fi = document.querySelector('.input-tile'); if (fi) fi.focus(); }, 100);
+}
+
+function renderGame() {
+  const last = state.chain[state.chain.length - 1], end = state.puzzle.end;
+  const curDiff = letterDifference(last, end), startDiff = letterDifference(state.puzzle.start, end);
+  const progress = startDiff > 0 ? Math.max(0, Math.min(1, 1 - curDiff / startDiff)) : 0;
+  const pColor = getProgressColor(progress);
+
+  let chainHTML = `<div class="word-row">${[...state.puzzle.start].map(c => `<div class="tile tile-start">${c}</div>`).join('')}</div>`;
+  for (let s = 1; s < state.chain.length; s++) {
+    const w = state.chain[s], prev = state.chain[s-1];
+    const sp = startDiff > 0 ? Math.max(0, Math.min(1, 1 - letterDifference(w, end) / startDiff)) : 0;
+    chainHTML += `<div class="connector"><div class="connector-dot"></div><div class="connector-dot"></div></div>`;
+    chainHTML += `<div class="word-row">${[...w].map((c,i) => { const ch = c !== prev[i]; return `<div class="tile tile-step ${ch?'tile-changed tile-highlight':''}" style="background:${getTileColor(sp)};border-color:${getTileBorderColor(sp)};">${c}</div>`; }).join('')}</div>`;
+  }
+  chainHTML += `<div class="connector"><div class="connector-dot"></div><div class="connector-dot"></div><div class="connector-dot"></div></div>`;
+  chainHTML += `<div class="word-row" style="opacity:0.65">${[...end].map(c => `<div class="tile tile-end">${c}</div>`).join('')}</div>`;
+
+  const inputHTML = `<div class="input-row" id="inputRow">${state.currentInput.map((v,i) => `<input class="input-tile ${v?'filled':''}" type="text" maxlength="1" data-idx="${i}" value="${v}" autocomplete="off" spellcheck="false" />`).join('')}</div>`;
+  const msgHTML = state.message ? `<div class="message message-${state.message.type}">${state.message.text}</div>` : '';
+
+  return `
+    <div class="top-nav">
+      <button class="nav-btn" id="homeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Home</button>
+      <div class="header" style="margin:0;"><h1 style="font-size:1.3rem;">Word Ladder Rush</h1></div>
+      <button class="nav-btn" id="restartBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Restart</button>
+    </div>
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-value" id="timer">${formatTime(state.timer)}</div><div class="stat-label">Time</div></div>
+      <div class="stat"><div class="stat-value">${state.moves}</div><div class="stat-label">Moves</div></div>
+      <div class="stat"><div class="stat-value">${state.optimalSteps}</div><div class="stat-label">Optimal</div></div>
+      <div class="stat"><div class="stat-value">${curDiff}</div><div class="stat-label">Away</div></div>
+    </div>
+    <div class="progress-container">
+      <div class="progress-track"><div class="progress-fill" style="width:${progress*100}%;background:${pColor};color:${pColor};"></div></div>
+      <div class="progress-labels"><span>${state.puzzle.start}</span><span style="color:${pColor};font-weight:600;">${Math.round(progress*100)}%</span><span>${state.puzzle.end}</span></div>
+    </div>
+    <div class="chain">${chainHTML}</div>
+    <div class="input-area">
+      ${inputHTML}
+      <div class="btn-row">
+        <button class="btn btn-primary" id="submitBtn">Submit</button>
+        <button class="btn btn-secondary btn-small" id="undoBtn" ${state.chain.length<=1?'disabled style="opacity:0.35;pointer-events:none;"':''}>Undo</button>
+        <button class="btn btn-secondary btn-small" id="hintBtn">Hint</button>
+      </div>
+      ${msgHTML}
+    </div>
+  `;
+}
+
+function attachGameEvents() {
+  const inputs = document.querySelectorAll('.input-tile');
+  inputs.forEach((input, idx) => {
+    input.addEventListener('input', e => {
+      const v = e.target.value.toUpperCase().replace(/[^A-Z]/g,'');
+      e.target.value = v; state.currentInput[idx] = v; sound.play('type');
+      if (v && idx < inputs.length - 1) inputs[idx+1].focus();
+      if (state.currentInput.every(c => c)) setTimeout(() => submitWord(), 150);
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !e.target.value && idx > 0) { state.currentInput[idx] = ''; inputs[idx-1].focus(); inputs[idx-1].value = ''; state.currentInput[idx-1] = ''; sound.play('delete'); e.preventDefault(); }
+      if (e.key === 'Enter') { submitWord(); e.preventDefault(); }
+    });
+    input.addEventListener('focus', () => input.select());
+  });
+  document.getElementById('submitBtn').addEventListener('click', () => submitWord());
+  document.getElementById('undoBtn').addEventListener('click', () => undoMove());
+  document.getElementById('hintBtn').addEventListener('click', () => giveHint());
+  document.getElementById('homeBtn').addEventListener('click', () => goHome());
+  document.getElementById('restartBtn').addEventListener('click', () => restartPuzzle());
+}
+
+function showMessage(text, type, dur = 2500) {
+  state.message = { text, type }; render();
+  setTimeout(() => { const fi = document.querySelector('.input-tile'); if (fi) fi.focus(); }, 50);
+  if (dur > 0) setTimeout(() => { if (state.message && state.message.text === text) { state.message = null; const m = document.querySelector('.message'); if (m) m.remove(); } }, dur);
+}
+
+function submitWord() {
+  const word = state.currentInput.join('').toUpperCase();
+  if (word.length !== state.wordLength) return;
+  const last = state.chain[state.chain.length - 1];
+  if (word === last) { sound.play('error'); shakeInput(); showMessage("That's the same word!", 'error'); return; }
+  if (!diffByOne(word, last)) { sound.play('error'); shakeInput(); showMessage('Change exactly one letter!', 'error'); return; }
+  if (!VALID_WORDS.has(word)) { sound.play('error'); shakeInput(); showMessage(`"${word}" isn't in the dictionary`, 'error'); return; }
+  if (state.chain.includes(word)) { sound.play('error'); shakeInput(); showMessage('Already used in your chain!', 'error'); return; }
+  state.chain.push(word); state.moves++; state.currentInput = Array(state.wordLength).fill(''); state.message = null;
+  if (word === state.puzzle.end) {
+    clearInterval(state.timerInterval); state.won = true;
+    saveScore(state.puzzle, state.difficulty, state.moves, state.timer, state.hintsUsed, state.optimalSteps);
+    sound.play('victory'); state.screen = 'victory'; render(); return;
+  }
+  sound.play('submit'); render();
+  setTimeout(() => { const fi = document.querySelector('.input-tile'); if (fi) fi.focus(); }, 50);
+}
+
+function shakeInput() { const r = document.getElementById('inputRow'); if (r) { r.classList.add('shake'); setTimeout(() => r.classList.remove('shake'), 500); } }
+
+function undoMove() {
+  if (state.chain.length <= 1) return;
+  state.chain.pop(); state.moves = Math.max(0, state.moves - 1);
+  state.currentInput = Array(state.wordLength).fill(''); state.message = null;
+  sound.play('delete'); render();
+  setTimeout(() => { const fi = document.querySelector('.input-tile'); if (fi) fi.focus(); }, 50);
+}
+
+function renderVictory() {
+  const app = document.getElementById('app');
+  const eff = Math.round((state.optimalSteps / state.moves) * 100);
+  const rating = eff >= 100 ? 'Perfect!' : eff >= 80 ? 'Great!' : eff >= 60 ? 'Good!' : 'Complete!';
+  const emoji = eff >= 100 ? '🏆' : eff >= 80 ? '🌟' : eff >= 60 ? '✨' : '🎉';
+  spawnConfetti();
+
+  const chainViz = state.chain.map((word, i) => {
+    const p = state.chain.length > 1 ? i / (state.chain.length - 1) : 0;
+    const color = getProgressColor(p);
+    return `<div class="word-row" style="animation-delay:${i*0.1}s">
+      ${word.split('').map((ch, ci) => {
+        const prev = i > 0 ? state.chain[i-1] : word;
+        const changed = i > 0 && ch !== prev[ci];
+        return `<div class="tile" style="background:${getTileColor(p)};border:2px solid ${getTileBorderColor(p)};color:${color};${changed?'font-weight:900;':''}">${ch}</div>`;
+      }).join('')}
+    </div>${i < state.chain.length - 1 ? '<div class="connector"><div class="connector-dot"></div></div>' : ''}`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="victory-overlay">
+      <div class="victory-card">
+        <div class="victory-emoji">${emoji}</div>
+        <div class="victory-title">${rating}</div>
+        <div class="victory-sub">You transformed <strong>${state.puzzle.start}</strong> → <strong>${state.puzzle.end}</strong><br>in ${state.moves} move${state.moves !== 1 ? 's' : ''}</div>
+        <div class="victory-stats">
+          <div class="stat"><div class="stat-value">${formatTime(state.timer)}</div><div class="stat-label">Time</div></div>
+          <div class="stat"><div class="stat-value">${eff}%</div><div class="stat-label">Efficiency</div></div>
+          <div class="stat"><div class="stat-value">${state.hintsUsed}</div><div class="stat-label">Hints</div></div>
+        </div>
+        <div class="chain" style="margin:12px 0;">${chainViz}</div>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn btn-primary" id="newPuzzleBtn">New Puzzle</button>
+          <button class="btn btn-secondary" id="retryBtn">Retry</button>
+          <button class="btn btn-secondary" id="menuBtn">Home</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('newPuzzleBtn').addEventListener('click', () => { sound.play('start'); startGame(state.difficulty); });
+  document.getElementById('retryBtn').addEventListener('click', () => restartPuzzle());
+  document.getElementById('menuBtn').addEventListener('click', () => goHome());
+}
+
+// ===================================================================
+// INIT
+// ===================================================================
+render();
+</script>
+</body>
+</html>
